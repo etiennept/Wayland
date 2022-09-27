@@ -1,0 +1,10 @@
+[workspace]
+members = ["c_wayland-client",
+    "wayland-client" ,
+    "wayland-scanner"
+]
+
+
+
+
+
