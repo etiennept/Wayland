@@ -12,13 +12,14 @@
       <sourceFolder url="file://$MODULE_DIR$/wayland/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/wayland_util/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/wayland-client/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/c_wayland-client/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/wayland-scanner/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/c_wayland/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/wayland-util/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/client/target" />
       <excludeFolder url="file://$MODULE_DIR$/wayland/target" />
-      <excludeFolder url="file://$MODULE_DIR$/c_wayland-client/target" />
       <excludeFolder url="file://$MODULE_DIR$/eee" />
+      <excludeFolder url="file://$MODULE_DIR$/c_wayland/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

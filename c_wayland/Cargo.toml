@@ -1,5 +1,5 @@
 [package]
-name = "c_wayland-client"
+name = "c_wayland"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,3 +10,8 @@ edition = "2021"
 [build-dependencies]
 pkg-config = "0.3.25"
 bindgen = "0.60.1"
+
+
+[features]
+client = [ ]
+server = [ ]

@@ -1,51 +1,91 @@
-use std::ffi::{c_void, CStr, CString};
+mod connection;
+mod c;
+
+use std::env;
+use std::ffi::{ CStr, CString};
+use std::ops::Deref;
+use std::os::raw::{c_void , c_int };
+use std::os::unix::io::AsFd;
+use std::os::unix::net::UnixStream;
+use std::os::unix::prelude::{AsRawFd, FromRawFd};
+use std::path::PathBuf;
 use std::ptr::null;
-use c_wayland_client::{wl_display, wl_display_connect, wl_display_disconnect,
-                       wl_display_dispatch, wl_display_roundtrip, wl_registry_listener,
-                       wl_registry, wl_registry_bind, wl_compositor, wl_interface, wl_compositor_interface, wl_shell, wl_shell_interface};
+use std::rc::Rc;
+use std::sync::Arc;
+//use nix::fcntl;
+//use nix::fcntl::F_GETFD;
+//use wayland_util::Interface;
+use c_wayland::client::* ;
+use c_wayland::util::*;
 
 
-pub(crate) struct Display {
-    wl_display: *mut wl_display,
+// wl_registry, wl_registry_bind, wl_compositor, wl_interface, wl_compositor_interface, wl_shell, wl_shell_interface;
+
+
+
+struct Connection {
+
+}
+
+impl Connection  {
+    fn connect (){
+       /* if let Ok(a) = env::var("WAYLAND_SOCKET")  {
+           let fd = a.parse::<i32>().unwrap();
+            env::remove_var("WAYLAND_SOCKET");
+            let flag = fcntl::fcntl(fd, F_GETFD);
+            let result = flag.map(|f| fcntl::FdFlag::from_bits(f).unwrap() | fcntl::FdFlag::FD_CLOEXEC)
+                .and_then(|f| fcntl::fcntl(fd, fcntl::FcntlArg::F_SETFD(f)));
+
+            match result {
+                Ok(_) => unsafe {
+                    //FromRawFd::from_raw_fd(fd  )
+                }
+                Err( T ) => {
+
+                }
+            }
+        }else {
+            let b = env::var("WAYLAND_DISPLAY").map(Into::<PathBuf>::into) ;
+                //.ok_or()?; ;
+        } ; */
+    }
+}
+
+
+
+#[repr(C)]
+
+struct Display{
+    ptr  :  * mut   wl_display
 }
 
 impl Display {
-    pub fn connect(value: Option<String>) -> Result<Display, String> {
-        let b = match value {
-            None => { null() }
-            Some(y) => unsafe { CString::new(y).unwrap().as_ptr() }
-        };
-        let a = unsafe { wl_display_connect(b) };
-        if a.is_null() {
-            Err("Connection established".to_string())
-        } else {
-            Ok(Display { wl_display: a })
+   //pub fn connect( )  -> Result<Display<> ,String> { }
+
+    fn connect_from_unix_stream(unix_stream:UnixStream) -> Result<Display<>, &'static str> {
+        if let Some(ptr) = unsafe{(wl_display_connect_to_fd( unix_stream.as_raw_fd()  ) as * mut wl_display).as_mut()}     {
+            Ok(Display{ptr})
+        }else {
+            Err("")
         }
     }
-    pub fn dispatch(&self) -> bool {
-        unsafe { wl_display_dispatch(self.wl_display) == 1 }
-    }
-    pub fn round_trip(&self) {
-        unsafe { wl_display_roundtrip(self.wl_display) };
-    }
-    pub fn get_registry(&self) -> *mut wl_registry {
-        unsafe { wayland_client::wl_display_get_registry(self.wl_display) }
-    }
+
 }
 
-impl Drop for Display {
+
+impl<'a > Drop for Display< > {
     fn drop(&mut self) {
-        unsafe { wl_display_disconnect(self.wl_display) };
+        unsafe { wl_display_disconnect( self.ptr  ) };
     }
 }
 
-//#[repr(C)]
-struct wl {
-    compositor: *mut wl_compositor,
-    shell: *mut wl_shell,
 
-}
 
+
+
+
+
+/*
 unsafe extern "C" fn global_fn(data: *mut c_void, wl_registry: *mut wayland_client::wl_registry, name: u32, interface: *const i8, version: u32) {
     let a = CStr::from_ptr(interface).to_str().unwrap();
     println!("{}", a);
@@ -61,33 +101,90 @@ unsafe extern "C" fn global_fn(data: *mut c_void, wl_registry: *mut wayland_clie
 }
 
 extern "C" fn global_remove_fn(data: *mut c_void, wl_registory: *mut wayland_client::wl_registry, name: u32) {}
+ */
+
+
+
+
+extern "C" fn dispatcher_c_fun(  data : *const ::std::os::raw::c_void,
+                     proxy: *mut ::std::os::raw::c_void,
+                     arg3: u32,
+                     message : *const wl_message,
+                     argument: *mut wl_argument  )  ->  c_int {
+    0
+}
+
+
+trait T   {
+    fn ee () ;
+}
+
+#[repr(C)]
+struct A {
+    b  : i32 ,
+}
+fn eee (){
+
+
+}
+
+
+
+
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::Borrow;
+    use std::env;
+    use std::io::Read;
+    use std::path::Path;
     use std::ptr::null_mut;
-    use c_wayland_client::wl_registry_add_listener;
-    use wayland_client::wl_registry_add_listener;
+    use wayland_util::A;
+    // use nix::libc::{pthread_rwlockattr_setkind_np, timer_create};
+   // use nix::sys::socket::SockaddrLike;
+
+
+
     use super::*;
+
 
     #[test]
     fn it() {
-        let a = Display::connect(None).unwrap();
+        let name= PathBuf::from (env!("WAYLAND_DISPLAY" ) );
+        let name = if name.is_absolute() { name
+        }else {
+            PathBuf::from(env!("XDG_RUNTIME_DIR")).join(name)};
+        let x = UnixStream::connect( name ).unwrap();
 
-        let x = &mut wl_registry_listener {
-            global: Some(global_fn),
-            global_remove: Some(global_remove_fn),
-        } as *mut wl_registry_listener;
-        let r = &mut wl {
-            compositor: null_mut(),
-            shell: null_mut(),
-        };
 
-        let t = a.get_registry();
-        unsafe {
-            wl_registry_add_listener(t, x, (r as *mut wl) as *mut c_void);
-        }
-        a.dispatch();
-        a.round_trip();
-        println!("{}", r.shell.is_null());
+        let a = &Display::connect_from_unix_stream(x).unwrap();
+
+        let x  =  unsafe { wl_proxy_get_listener(a.ptr as * mut wl_proxy ) }  ;
+        x ;
+           //*a ;
+
+    }
+
+    #[test]
+    fn test_it(){
+
+
+
+
+
+
+      /*  env::vars().for_each(|it | {
+            println!("{} : {}" ,  it.0 , it.1 )
+        } ) */
+
+          // let a = Display::connect().unwrap();
+      // println!("{}" ,  env!("WAYLAND_DEBUG") ) ;
+
+      //  println!("{}" , env::var("WAYLAND_SOCKET").unwrap())
+
+
+
+
+       // let x  = a.as_mut( ) as w l_display ;
     }
 }

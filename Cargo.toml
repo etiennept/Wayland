@@ -1,7 +1,9 @@
 [workspace]
-members = ["c_wayland-client",
+members = ["c_wayland",
     "wayland-client" ,
-    "wayland-scanner"
+    "wayland-scanner",
+    "wayland-util",
+    "wayland"
 ]
 
 
