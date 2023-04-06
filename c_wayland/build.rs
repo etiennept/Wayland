@@ -38,11 +38,13 @@ fn main() {
 
 
     if std::env::var_os("CARGO_FEATURE_CLIENT").is_some() {
-        let library = probe_library("wayland-client").unwrap();
-        let path = library.include_paths.first().unwrap();
-        eee!( path , "wayland-util.h" , "wayland_util.rs"  ) ;
-        eee!( path , "wayland-client-core.h" ,"wayland-util.h", "wayland_client.rs"  ) ;
+
     }
+    let library = probe_library("wayland-client").unwrap();
+    let path = library.include_paths.first().unwrap();
+    eee!( path , "wayland-util.h" , "wayland_util.rs"  ) ;
+    eee!( path , "wayland-client-core.h" ,"wayland-util.h", "wayland_client.rs"  ) ;
+    eee!( path , "wayland-client-protocol.h" , "wayland-util.h" , "wayland_protocol.rs"  ) ;
 
 
    // eee!( path , "wayland-client-protocol.h" ,   " wayland_client_protocol.rs") ;

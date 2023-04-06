@@ -1,178 +1,85 @@
-use std::env::args;
-use std::fmt::format;
+mod client;
 
-use std::string::String;
-use proc_macro2::{LexError, TokenStream};
+use std::ops::Add;
+use proc_macro2::{TokenStream, TokenTree};
 use quote::quote;
 
 
-use crate::*;
-// use crate::parser::parse;
 
-/*
-fn generator(file_name: &str) {
-    //let data = Vec::new();
-
-    //a.interfaces
-}
-fn enum_builder(  enum_ : Enum ) -> TokenStream{
-    let  mut tokenEnum = TokenStream::new() ;
-    let mut from_u32Enum = TokenStream::new() ;
-    let name  =  enum_.name ;
-
-    for entry in enum_.entries.iter() {
-        let arg_name = entry.name.to_uppercase() ;
-        /*let value = entry.value ;
-        tokenEnum = quote!{
-            #tokenEnum
-            #arg_name = #value ,
-        } ;
-        from_u32Enum  = quote!{
-            #from_u32Enum
-            #value => Ok(#name::#arg_name),
-        }; */
+use crate::parser::{Arg, Enum, Interface, Protocol};
+use crate::parser::Type;
 
 
-    }
-
-
+pub(crate) fn generate(protocol: Protocol)  -> TokenStream  {
+    let token  = protocol.interfaces.into_iter().map(| interface| {
+        generate_from_interface(interface )
+    }).collect::<Vec< TokenStream>>() ;
     quote!{
-        #[repr(u32)]
-        pub enum #name {
-            #tokenEnum
+        #(#token)*
+    }
+}
+
+fn generate_from_interface(interface: Interface) -> TokenStream {
+    let name = interface.name ;
+    let rust_name =  to_rust_name(name.clone() ) ;
+    let enums : Vec<TokenStream>  = interface.enums.map(|enum_|{
+        generate_from_enum(   rust_name ,   enum_  )
+    } ).collect() ;
+    let static_interface =  name+"_interface" ;
+    //let name_interface = n   ame.add("_interface" )  ;
+    quote! {
+        #(#enums)*
+        pub struct #rust_name {
+            ptr : * mut c_void
+            
         }
-        impl Wl_Enum for #name {
-            fn from_u32(int : u32 ) -> Resulf<#name,()>{
-                match  int {
-                    #from_u32Enum
-                    _=> { Err(())}
+        impl CWlOject for #rust_name {
+            fn get_interface(){
+                unsafe{
+                    #static_interface
                 }
             }
-            fn as_32 (&self)-> u32 { self as u32 }
+        }
+    }
+}
+fn generate_from_enum( interface_name : String  ,   enum_: Enum) -> TokenStream {
+    let mut enum_stream = Vec::<TokenStream>::new();
+    let mut from_stream = Vec::<TokenStream>::new();
+    let enum_name =  interface_name.add(to_rust_name(enum_.name).as_str());
+    for entry in enum_.entries{
+        let name = to_rust_name(entry.name);
+        let value = entry.value;
+        enum_stream.push( quote!{
+            #name = #value ,
+        }) ;
+        from_stream.push( quote!{
+            #value => #enum_name::#name ,
+        })
+    }
+    quote! {
+        #[repr(u32)]
+        enum #enum_name{
+            #enum_stream
+        }
+        impl WlEnum{
+            fn from_u32 (value : u32 )->Self {
+                match value {
+                    #from_stream
+                }
+            }
         }
     }
 }
 
-fn arg_null  (allow_null : bool , token  :TokenStream  ) -> TokenStream {
-    match allow_null {
-        true => {quote!{ Option <#token > }   }
-        false => {  token  }
-    }
-}
-fn arg_interface(interface : Option<String> ) -> TokenStream {
+
+
+
+
+
+fn arg_interface(interface: Option<String>) -> TokenStream {
     match interface {
-        None => { quote!{ T   }   }
-        Some( string  ) => { quote!{ #string   }}
-    }
-}
-
-
-
-
-fn client_interface_generator(interface : Interface ) -> TokenStream{
-
-    let name = interface.name.split("_") .last().unwrap() ;
-    let version = interface.version ;
-
-
-    let token_request = TokenStream::new() ;
-    for request  in interface.requests {
-        let token_arg = TokenStream::new() ;
-        for arg in  request.args  {
-            match arg.type_{
-                Type::Int => {
-                    quote!{i32}
-                }
-                Type::Uint => {
-                    match arg.enum_ {
-                        None => {quote!{ u32  } }
-                        Some(name) => {quote!{ #name }}
-                        }
-                    }
-                Type::Fixed => {quote!{}}
-                Type::String  => {
-                    arg_null(arg.allow_null , quote!{&str } )
-                }
-                Type::Object => {
-                    match  arg.interface {
-                        None => {
-
-                        }
-                        Some(b ) => {}
-                    }
-                    quote!{
-
-                    }
-
-
-                }
-                Type::NewId => {
-
-                    match  arg.interface  {
-                        None => { }
-                        Some( b  ) => {}
-                    }
-                    TokenStream::new()
-                }
-                Type::Array => {quote!{&[u8]}   } ,
-                Type::Fd => {quote!{
-
-
-                } }
-            };
-        }
-        quote!{
-            #token_request
-
-            fn (){ }
-        }  ;
-
-    }
-
-
-    quote! {
-        struct #name {
-
-        }
-         impl #name  {
-
-        }
-    }
-
-
-}
-
-
-
-
-
-
-pub(crate) struct Build {
-    //protocol: Protocol,
-}
-
-impl Build {
-    /*fn parser(file_name: &str) -> Build {
-        Build {
-            protocol:  //parse(&mut Reader::from_file(file_name).unwrap())
-        }
-    } */
-
-    fn generate_client(self) {
-       // self.protocol.interfaces;
-    }
-    fn generate_server(self) {
-
-    }
-}
-
-fn interface_struct_generator(interface: Interface) -> TokenStream {
-    let name = interface.name;
-    quote! {
-        #[repr(C)]
-        pub struct #name{
-             _unused: [u8; 0],
-        }
+        None => { quote! { T   } }
+        Some(string) => { quote! { #string   } }
     }
 }
 
@@ -276,29 +183,7 @@ fn arg_to_type   (message_args  :&Vec<Arg>    ) -> TokenStream {
 }*/
 
 
-fn enums_to_generator(data: &mut Vec<String>, interface: Interface) -> TokenStream {
-    let mut token = TokenStream::new();
-
-    for it in interface.enums {
-        let name = format!("{}_{}", interface.name, it.name);
-        let mut token_entries = TokenStream::new();
-        for entry in it.entries {
-            let entry_name = format!("{}_{}", name, entry.name);
-            let value = entry.value;
-            token_entries = quote! {
-                #token_entries
-                #entry_name : #name = #value;
-            }
-        }
-        token = quote! {
-            #token
-            pub type #name = u32 ;
-            #token_entries
-        }
-    };
-    token
-}
-
+/*
 
 fn to_signate(message: Message) -> String {
     let mut string = String::new();
@@ -336,19 +221,29 @@ fn to_type(arg: Arg) -> String {
         Type::Fd => { "i32".to_string() }
     }
 }
-
-fn eee (){
-
+ */
+fn to_rust_name(name: String) -> String {
+    let a = name.split("_");
+    let mut value = "".to_string();
+    for x in a {
+        let a = x[0..1].to_uppercase() + (&x[1..]);
+        value += a.as_str();
+    }
+    value
 }
-
-*/
-
 
 #[cfg(test)]
 mod tests {
     use proc_macro2::TokenStream;
     use quote::quote;
+    use crate::generator::to_rust_name;
 
+    #[test]
+    fn name_test() {
+        let a = to_rust_name("wl_display".to_string());
+
+        println!("{}", a)
+    }
 
     #[test]
     fn test() {

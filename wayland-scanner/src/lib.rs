@@ -14,7 +14,6 @@ mod generator;
 
 
 
-
 fn parser(filename: &str) -> Rc<Protocol>{
     let file = File::open(filename).unwrap();
     let file = BufReader::new(file);
@@ -35,10 +34,31 @@ fn parser(filename: &str) -> Rc<Protocol>{
             _ => {}
         }
     }
-    a.give()
+    Rc::new(a.give() )
 }
 
+fn generator (filename: &str ){
+    let x = parser(filename );
+    for interface in x.interfaces.iter() {
+        println!("  {} " ,  interface.name) ;
 
+        for  enum_ in interface.enums  {
+            println!("{}" ,  enum_.name)
+        }
+        for event  in  interface.events{
+            println!( "{}" , event.name)
+        }
+
+        for request  in interface.requests {
+            println!("{}", request.name )
+        }
+
+
+    }
+
+
+
+}
 
 
 
@@ -47,14 +67,14 @@ mod tests {
     use std::cell::RefCell;
     use std::collections::HashSet;
     use std::fs::read;
-
-
+    use std::os::raw::c_char;
     use super::*;
+
+
 
     #[test]
     fn it_works() {
-        let x = parser("/home/etienne/wayland-1.21.0/protocol/wayland.xml" );
-        println!("{}" , x.name)
+
     }
 
     #[test]

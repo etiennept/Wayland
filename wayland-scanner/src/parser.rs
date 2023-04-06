@@ -4,6 +4,7 @@ use std::fmt::Debug;
 
 use std::fs::{File, read};
 use std::hash::Hash;
+
 use std::io::{BufRead, BufReader, Read};
 use std::rc::Rc;
 
@@ -27,20 +28,16 @@ enum Message {
     Event
 } */
 
-
-
-
-
-#[derive(Debug)]
+#[derive(Debug, )]
 pub struct Protocol {
-    pub name: Rc<str>,
+    pub name: String,
     pub interfaces: Vec<Interface>,
 }
 
 #[derive(Debug)]
 pub struct Interface {
-    pub name: Rc<str>,
-    pub version: Rc<str>,
+    pub name: String,
+    pub version: String,
     pub requests : Vec<Message> ,
     pub events : Vec<Message> ,
     pub enums  : Vec<Enum> ,
@@ -48,16 +45,16 @@ pub struct Interface {
 
 #[derive(Debug)]
 pub struct Enum {
-   pub name: Rc<str>,
-   pub since: Option<Rc<str>>,
-   pub bitfield: Option<Rc<str>>,
-   pub entries: Vec<Entry>,
+    pub name: String,
+    pub since: Option<String>,
+    pub bitfield: Option<String>,
+    pub entries: Vec<Entry>,
 }
 
 #[derive(Debug)]
 pub struct Message {
-    pub name: Rc<str>,
-    pub since: Option<Rc<str>>,
+    pub name: String,
+    pub since: Option<String>,
     pub is_destructor: bool,
     pub args: Vec<Arg>,
 }
@@ -65,50 +62,48 @@ pub struct Message {
 
 #[derive(Debug)]
 pub struct Arg {
-    pub name: Rc<str>,
-    pub interface: Option<Rc<str>>,
+    pub name: String,
     pub type_: Type,
     pub allow_null: bool,
-    pub enum_: Option<Rc<str>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug )]
 pub struct Entry {
-    pub name: Rc<str>,
-    pub value: Rc<str>,
-    pub summary: Option<Rc<str>>,
-    pub since: Option<Rc<str>>,
+    pub name: String,
+    pub value: String ,
+    pub summary: Option<String>,
+    pub since: Option<String>,
 }
 
 
-
-
-
-impl<R: AsRef<str>> From<R> for Type {
-    fn from(string: R) -> Self {
-        match string.as_ref() {
+impl Type {
+    fn from (type_name : String,  enum_name : Option<String>, interface_name : Option<String>   ) -> Type {
+        match type_name.as_str()  {
             "int" => Type::Int,
-            "uint" => Type::Uint,
+            "uint" => Type::Uint{ enum_ : enum_name },
             "fixed" => Type::Fixed,
             "string" => Type::String,
-            "object" => Type::Object,
-            "new_id" => Type::NewId,
+            "object" => Type::Object{  name : interface_name }   ,
+            "new_id" => Type::NewId{ name : interface_name},
             "array" => Type::Array,
             "fd" => Type::Fd,
             _ => panic!("type not recognized")
         }
     }
+
 }
+
+
 
 
 #[derive(Debug, Eq, PartialEq , Clone)]
 pub enum Type {
     Int,
-    Uint,
+    Uint { enum_ : Option<String> },
     Fixed,
     String,
-    Object,
-    NewId,
+    Object{ name : Option<String>   } ,
+    NewId{ name : Option<String>  },
     Array,
     Fd,
 }
@@ -119,7 +114,7 @@ pub enum Type {
 impl Protocol {
     fn new(attributes: BTreeMap<String, String>) -> Self {
         Protocol {
-            name: Rc::from(attributes.get("name").unwrap().to_string()),
+            name: attributes.get("name").unwrap().to_string(),
             interfaces: vec![],
         }
     }
@@ -129,8 +124,8 @@ impl Protocol {
 impl Interface {
     fn new(attributes: BTreeMap<String, String>) -> Self {
         Interface {
-            name: Rc::from(attributes.get("name").unwrap().to_string()),
-            version: Rc::from(attributes.get("version").unwrap().to_string()),
+            name: attributes.get("name").unwrap().to_string(),
+            version: attributes.get("version").unwrap().to_string(),
             requests: vec![],
             events: vec![],
             enums: vec![],
@@ -141,7 +136,7 @@ impl Interface {
 impl Enum {
     fn new(attributes: BTreeMap<String, String>) -> Self {
         Enum {
-            name: Rc::from(attributes.get("name").unwrap().to_string()),
+            name:attributes.get("name").unwrap().to_string(),
             since: None,
             bitfield: None,
             entries: vec![],
@@ -152,7 +147,7 @@ impl Enum {
 impl Message {
     fn new(attributes: BTreeMap<String, String>) -> Self {
         Message {
-            name: Rc::from(attributes.get("name").unwrap().to_string()),
+            name: attributes.get("name").unwrap().to_string(),
             since: None,
             is_destructor: attributes.get("type") == Some(&"destructor".to_string()),
             args: vec![],
@@ -161,15 +156,13 @@ impl Message {
 
 }
 
-
 impl Arg {
     fn new(attributes: BTreeMap<String, String>) -> Self {
         Arg {
-            name: Rc::from(attributes.get("name").unwrap().to_string()),
-            interface: attributes.get("").map(|x| { Rc::from(x.to_string()) }),
-            type_: Type::from(attributes.get("type").unwrap()),
-            allow_null: attributes.get("allow-null") == Some(&"true".to_string()),
-            enum_: attributes.get("").map(|x| { Rc::from(x.to_string()) }),
+            name: attributes.get("name").unwrap().to_string(),
+            type_: Type::from(attributes.get("type").unwrap().to_string()
+                              , attributes.get("interface").map(|x| { x.to_string() }) ,attributes.get("enum").map(|x | x.to_string() )  ) ,
+            allow_null: attributes.get("allow-null") == Some(&"true".to_string())
         }
     }
 }
@@ -177,10 +170,10 @@ impl Arg {
 impl Entry {
     fn new(attributes: BTreeMap<String, String>) -> Self {
         Entry {
-            name: Rc::from(attributes.get("name").unwrap().to_string()),
-            value: Rc::from(attributes.get("value").unwrap().to_string()),
-            summary: attributes.get("").map(|x| { Rc::from(x.to_string()) }),
-            since: attributes.get("").map(|x| { Rc::from(x.to_string()) }),
+            name: attributes.get("name").unwrap().to_string(),
+            value: attributes.get("value").unwrap().to_string(),
+            summary: attributes.get("").map(|x| {x.to_string() }),
+            since: attributes.get("").map(|x| { x.to_string() }),
         }
     }
 }
@@ -289,9 +282,11 @@ impl Message {
 }
 
 
+
+
 pub(crate) struct Stack {
     vec: Vec<NodeType>,
-    value : Option<Rc<Protocol>>
+    value : Option<Protocol>
 }
 
 impl Stack {
@@ -314,34 +309,34 @@ impl Stack {
         }
         if let Some(last) = self.vec.last_mut() {
             match last {
-                NodeType::Protocol { protocol } => {
+                NodeType::Protocol { protocol  } => {
                     match  value {
                         NodeType::CopyRight { .. } => {}
-                        NodeType::Interface { interface } => {
-                            protocol.interfaces.push( interface)
+                        NodeType::Interface {interface } => {
+                            protocol.interfaces.push( interface )
                         }
                         _=> {
                             panic!("")
                         }
                     }
                 }
-                NodeType::Interface { interface } => {
+                NodeType::Interface {  interface  } => {
                     match value {
                         NodeType::Description { .. } => {}
-                        NodeType::Enum { enum_ } => {
-                            interface.enums.push(enum_)
+                        NodeType::Enum {   enum_ } => {
+                            interface.enums.push(enum_ )
                         }
-                        NodeType::Request { message } => {
-                            interface.requests.push(message)
+                        NodeType::Request {  message  } => {
+                            interface.requests.push(message )
                         }
-                        NodeType::Event { message } => {
-                            interface.events.push(  message )
+                        NodeType::Event {  message  } => {
+                            interface.events.push(   message)
                         }
                         _=> { panic!("")}
                     }
 
                 }
-                NodeType::Enum { enum_ } => {
+                NodeType::Enum { enum_  } => {
                     match value {
                         NodeType::Description { ..}=> {
 
@@ -353,11 +348,11 @@ impl Stack {
                     }
 
                 }
-                NodeType::Request {  message } => {
-                    message.add_arg(value)
+                NodeType::Request {  message   } => {
+                     message.add_arg(  value )
                 }
-                NodeType::Event { message } => {
-                    message.add_arg(value)
+                NodeType::Event { message   } => {
+                    message.add_arg(  value )
                 }
                 _=>{
                     panic!("")
@@ -367,18 +362,17 @@ impl Stack {
         } else {
             match value {
                 NodeType::Protocol { protocol } => {
-                    self.value  = Some( Rc::new(protocol))
+                    self.value  = Some( protocol )
                 }
                 _=> {
                     panic!("")
                 }
-
             }
 
         }
     }
-    pub(crate) fn give (& self) -> Rc<Protocol> {
-        self.value.as_ref().unwrap().clone()
+    pub(crate) fn give (self) -> Protocol {
+        self.value.unwrap()
     }
 }
 
@@ -397,6 +391,8 @@ mod tests {
 
     #[test]
     fn test_parser() {
+
+
         /* let mut a = E {
              vec: vec![],
          };
